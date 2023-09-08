@@ -58,10 +58,9 @@ st.write("""
 # GitHub Contributor Analysis
 """)
 
-st.text_input("Please input your github auth token for GitHub API calls", key="token", value="") 
 st.text_input("Please input the repository in owner/repo format", key="repo", value="google/leveldb") 
 
-df = contributors_df(st.session_state.token, st.session_state.repo)
+df = contributors_df(st.secrets["github_token"], st.session_state.repo)
 
 ignore_unknown = st.toggle("Ignore unknown value", value=False)
 

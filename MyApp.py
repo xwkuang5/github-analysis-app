@@ -3,13 +3,23 @@ import pandas as pd
 import re
 from github import Github, Auth
 
+UNKNOWN_VALUE = "unknown"
+
 def email_to_domain_name(email):
     if email is None:
-        return "unknown"
+        return UNKNOWN_VALUE
     match = re.search(r'.+@(.+)', email)
     if match:
         return match.group(1)
-    return "unknown"
+    return UNKNOWN_VALUE
+
+def get_orgs(user):
+    orgs = set(org.name for org in user.get_orgs() if org.name is not None and org.name != "")
+
+    if len(orgs) == 0:
+        orgs = set([UNKNOWN_VALUE])
+
+    return list(orgs)
 
 @st.cache_data
 def contributors_df(token, repository):
@@ -21,20 +31,40 @@ def contributors_df(token, repository):
 
     return pd.DataFrame({
         "name": [user.name for user in contributors],
-        "domain": [email_to_domain_name(user.email) for user in contributors]
+        "domain": [email_to_domain_name(user.email) for user in contributors],
+        "org": [get_orgs(user) for user in contributors]
     })
+
+def plot_group_by_domain(df, ignore_unknown):
+    if ignore_unknown:
+        df = df.loc[df["domain"] != UNKNOWN_VALUE]
+    
+    grouped_by_domain = df.groupby("domain").size().reset_index(name="count")
+
+    st.bar_chart(grouped_by_domain.sort_values(by="count", ascending=False).reset_index(drop=True), y="count", color="domain")
+
+def plot_group_by_org(df, ignore_unknown):
+    exploded_by_org = df.explode("org")
+
+    if ignore_unknown:
+        exploded_by_org = exploded_by_org.loc[exploded_by_org["org"] != UNKNOWN_VALUE]
+
+    grouped_by_org = exploded_by_org.groupby("org").size().reset_index(name="count")
+
+    st.bar_chart(grouped_by_org.sort_values(by="count", ascending=False).reset_index(drop=True), y="count", color="org")
+
 
 st.write("""
 # GitHub Contributor Analysis
 """)
 
-st.text_input("Please input your github auth token for accessing GitHub", key="token", value="") 
+st.text_input("Please input your github auth token for GitHub API calls", key="token", value="") 
 st.text_input("Please input the repository in owner/repo format", key="repo", value="google/leveldb") 
 
 df = contributors_df(st.session_state.token, st.session_state.repo)
 
-grouped = df.groupby("domain").size().reset_index(name="count")
+ignore_unknown = st.toggle("Ignore unknown value", value=False)
 
-grouped = grouped.sort_values(by="count", ascending=False).reset_index(drop=True)
+plot_group_by_domain(df, ignore_unknown=ignore_unknown)
 
-st.bar_chart(grouped, y="count", color="domain")
+plot_group_by_org(df, ignore_unknown=ignore_unknown)

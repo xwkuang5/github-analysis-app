@@ -7,4 +7,3 @@ The goal of this project is to build an app for visualizing information about th
 ### TODO
 
 1. Reduce data fetching latency by making API calls return batch of data instead of doing point lookups
-2. List legend in orders of decreasing counts

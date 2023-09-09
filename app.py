@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import re
 from github import Github, Auth
+import plotly.express as px
 
 UNKNOWN_VALUE = "unknown"
 
@@ -40,16 +41,32 @@ def contributors_df(token, repository):
     })
 
 
+def truncate_topk(df, topk, key_column, value_column, truncation_label):
+    topk_values = df.nlargest(topk, value_column, keep="last")
+    if len(topk_values) == 0:
+        return topk_values
+
+    threshold = topk_values[value_column].min()
+
+    df = df.copy()
+    df.loc[df[value_column] < threshold, key_column] = truncation_label
+
+    return df
+
+
 def plot_group_by_domain(df, topk, ignore_unknown):
     if ignore_unknown:
         df = df.loc[df["domain"] != UNKNOWN_VALUE]
 
     grouped_by_domain = df.groupby("domain").size().reset_index(name="count")
 
-    grouped_by_domain_topk = grouped_by_domain.nlargest(topk, "count")
+    grouped_by_domain_topk = truncate_topk(
+        grouped_by_domain, topk, "domain", "count", "others")
 
-    st.bar_chart(grouped_by_domain_topk.sort_values(
-        by="count", ascending=False).reset_index(drop=True), y="count", color="domain")
+    fig = px.pie(grouped_by_domain_topk, values="count", names="domain",
+                 title='Distribution of contributor email domain')
+
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def plot_group_by_org(df, topk, ignore_unknown):
@@ -62,16 +79,19 @@ def plot_group_by_org(df, topk, ignore_unknown):
     grouped_by_org = exploded_by_org.groupby(
         "org").size().reset_index(name="count")
 
-    grouped_by_org_topk = grouped_by_org.nlargest(topk, "count")
+    grouped_by_org_topk = truncate_topk(
+        grouped_by_org, topk, "org", "count", "others")
 
-    st.bar_chart(grouped_by_org_topk.sort_values(
-        by="count", ascending=False).reset_index(drop=True), y="count", color="org")
+    fig = px.pie(grouped_by_org_topk, values="count", names="org",
+                 title='Distribution of contributor organization')
+
+    st.plotly_chart(fig, use_container_width=True)
 
 
 st.write("""
 # GitHub Contributor Analysis
 """)
-         
+
 with st.sidebar:
     topk = st.number_input('The top-k values to show', 1, 20, 10)
 

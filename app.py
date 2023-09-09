@@ -71,15 +71,16 @@ def plot_group_by_org(df, topk, ignore_unknown):
 st.write("""
 # GitHub Contributor Analysis
 """)
+         
+with st.sidebar:
+    topk = st.number_input('The top-k values to show', 1, 20, 10)
+
+    ignore_unknown = st.toggle("Ignore unknown value", value=False)
 
 st.text_input("Please input the repository in owner/repo format",
               key="repo", value="google/leveldb")
 
 df = contributors_df(st.secrets["github_token"], st.session_state.repo)
-
-topk = st.number_input('The top-k values to show', 1, 20, 10)
-
-ignore_unknown = st.toggle("Ignore unknown value", value=False)
 
 plot_group_by_domain(df, topk=topk, ignore_unknown=ignore_unknown)
 
